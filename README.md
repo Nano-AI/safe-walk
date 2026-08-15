@@ -10,6 +10,7 @@ number a judge can check.
 
 Full brief (product, demo script, architecture, measured numbers):
 [`docs/safe-walk-brief.html`](docs/safe-walk-brief.html).
+Model inventory (Mac + SSD, with use cases): [`docs/models.md`](docs/models.md).
 Latest thinking on the government-facing angle:
 [`docs/feedback-nvidia-2026-08-15.md`](docs/feedback-nvidia-2026-08-15.md).
 
