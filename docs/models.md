@@ -30,7 +30,7 @@ Locations:
 | `Qwen/Qwen3-VL-8B-Instruct` | SSD `vlm/` | 16 GB, safetensors | Newer Qwen VLM: better OCR + spatial reasoning. Drop-in candidate on the Spark if the stack supports it. Untested on our schema. |
 | `nvidia/Cosmos-Reason1-7B` | SSD `vlm/` | 15 GB, safetensors | NVIDIA physical-world reasoning VLM. Brief names it as the on-box swap ("scores points on the See track"). Untested; prompt compliance unknown. |
 | **`mlx-community/Molmo2-8B-4bit`** | SSD `vlm/` | 6.1 GB, MLX 4-bit ✅ | Ai2 Molmo 2. **Pointing + counting** ("point at every person" → dots on the frame = verifiable `people_visible`), multi-image/video (feed 3–4 consecutive frames → persistence). Runs on the Mac today via existing `mlx-vlm` (`SAFEWALK_VLM=/Volumes/Extreme SSD/HACKATHON_MODELS/vlm/Molmo2-8B-4bit`). Untested on JSON schema and speed. Candidate for a live "count by pointing" beat, not the corpus model. |
-| `allenai/Molmo2-8B` | SSD `vlm/` | 34.7 GB target, fp32 shards, ⏳ downloading | Full-precision Molmo 2 for the Spark. Resume: `scripts/dl_molmo2.sh`. |
+| `allenai/Molmo2-8B` | SSD `vlm/` | 34.7 GB, fp32 shards ✅ | Full-precision Molmo 2 for the Spark (vLLM loads bf16). |
 | `qwen2.5vl:7b` (ollama) | SSD ollama | 6.0 GB, GGUF | Same VLM served over the ollama API. Fallback path if MLX/vLLM misbehaves on the box; also the easiest way for a teammate to poke the prompt without the Python stack. |
 | `Qwen/Qwen3-Embedding-0.6B` | SSD `embed/` | 1.2 GB | Embeddings. Only relevant if we do the stretch "natural-language search over the read corpus" (`notable` strings). Cut first per the brief. |
 | `nomic-embed-text` (ollama) | SSD ollama | 274 MB | Same job, ollama flavour. |
