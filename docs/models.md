@@ -76,7 +76,7 @@ Kept because the SSD goes to the Spark anyway. Details and Spark install notes i
 | Machine | Corpus VLM | Live read | Notes |
 |---|---|---|---|
 | Mac M4 24 GB (today) | Qwen2.5-VL-7B 4-bit, MLX | same model, second copy in the API process | Two copies + worker grinding = the machine "dying". Worker is `kill -STOP`ped; `scripts/demo_mode.sh off` resumes. |
-| DGX Spark GB10 128 GB | Qwen2.5-VL-7B (full) or Qwen3-VL-8B or Cosmos-Reason1-7B via vLLM | Molmo2-8B for pointing beat (optional) | One environment variable (`SWEEP_INTERVAL=60`); the inference backend swap is the only real porting task, isolated to `vision.caption_frame()`. Nothing GB10-specific has been tested yet. |
+| Acer Veriton GN100 (GB10, 128 GB) — the box teams get; DGX Spark-equivalent | Qwen2.5-VL-7B (full) or Qwen3-VL-8B or Cosmos-Reason1-7B via vLLM | Molmo2-8B for pointing beat (optional) | One environment variable (`SWEEP_INTERVAL=60`); the inference backend swap is the only real porting task, isolated to `vision.caption_frame()`. Nothing GB10-specific has been tested yet. |
 
 ## Housekeeping
 
