@@ -4,7 +4,7 @@
 #
 #   3d/Sharp        apple/Sharp        single photo -> 3D Gaussians (<1 s on GPU). Fits our
 #                                      single-viewpoint traffic cams. Code: toolchain/repos/ml-sharp
-#   3d/VGGT-1B      facebook/VGGT-1B   multi-view -> cameras+depth+points, one pass. For
+#   3d/VGGT-1B      facebook/VGGT-1B   multi-view -> cameras+depth+points, one pass (CC-BY-NC). For
 #                                      "phone video of a block -> 3D". Code: toolchain/repos/vggt
 export PATH="$HOME/.local/bin:$PATH"
 SSD="/Volumes/Extreme SSD/HACKATHON_MODELS"
@@ -42,6 +42,6 @@ clone() {  # clone <github url> — code the box needs; shallow, no history
 echo "########## RUN splat $(date) ##########" >> "$LOG"
 get   apple/Sharp        3d
 clone https://github.com/apple/ml-sharp.git
-get   facebook/VGGT-1B   3d
+get   facebook/VGGT-1B   3d --include "model.safetensors" --include "*.md" --include "*.json"
 clone https://github.com/facebookresearch/vggt.git
 echo "########## DONE splat $(date) ##########" >> "$LOG"
