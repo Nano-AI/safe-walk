@@ -1,0 +1,34 @@
+# --- python ---------------------------------------------------------------
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# --- runtime state (rebuilt by the daemons; never commit) ----------------
+logs/
+# camera frames, ~1.7 GB and growing
+data/frames/
+# VLM read corpus (append-only, changes every ~12 s) and newest read per camera
+data/meta/captions.jsonl
+data/meta/latest.json
+# scraper sweep log
+data/meta/sweeps.jsonl
+# derived from data/static; graph.load_or_build() recreates it
+data/meta/graph.pkl
+# vlm_pause.lock (GPU handoff between worker and API)
+data/meta/*.lock
+*.jpg
+*.jpeg
+
+# --- static SDOT layers ------------------------------------------------------
+# 45 MB of public GeoJSON, re-fetched in ~30 s by `python -m safewalk.static_data`.
+# Kept out of git; each machine pulls once (or copies from a teammate / the SSD).
+data/static/
+
+# --- machine-local -----------------------------------------------------------
+.claude/settings.local.json
+.DS_Store
+.env
+*.log
+nohup.out

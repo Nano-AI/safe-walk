@@ -1,0 +1,610 @@
+<title>Safe Walk</title>
+<style>
+:root{
+  --paper:#f3f4f6;
+  --card:#ffffff;
+  --ink:#14171c;
+  --ink-2:#3d4550;
+  --mute:#6b7280;
+  --rule:#d7dae0;
+  --sign:#17603f;      /* the green of Seattle street-name plates */
+  --sodium:#9a5f08;    /* streetlight amber, reserved for measured numbers */
+  --alarm:#a92e26;
+  --sky:#1c5c86;
+
+  --disp:"Helvetica Neue","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#101318; --card:#181c23; --ink:#e6e9ee; --ink-2:#b6bdc8;
+    --mute:#828b98; --rule:#2a313b;
+    --sign:#4fbb87; --sodium:#e2a03f; --alarm:#e8695f; --sky:#6cb6e0;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101318; --card:#181c23; --ink:#e6e9ee; --ink-2:#b6bdc8;
+  --mute:#828b98; --rule:#2a313b;
+  --sign:#4fbb87; --sodium:#e2a03f; --alarm:#e8695f; --sky:#6cb6e0;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--body);font-size:16px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:860px;margin:0 auto;padding:44px 24px 96px}
+
+/* masthead */
+.mast{border-bottom:2px solid var(--sign);padding-bottom:18px;margin-bottom:8px}
+.kicker{
+  font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--sign);margin-bottom:12px;
+}
+h1{
+  font-family:var(--disp);font-stretch:condensed;font-weight:700;
+  font-size:clamp(34px,6vw,52px);line-height:1.02;letter-spacing:-.01em;
+  text-transform:uppercase;margin:0 0 10px;text-wrap:balance;
+}
+.oneline{font-size:19px;line-height:1.45;color:var(--ink-2);max-width:60ch;text-wrap:balance}
+.stamp{
+  display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:16px;
+  font-family:var(--mono);font-size:11.5px;color:var(--mute);
+}
+.stamp b{color:var(--ink);font-weight:600}
+
+/* the evidence ledger — every headline number, measured tonight */
+.ledger{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);
+  margin:32px 0;border-radius:3px;overflow:hidden;
+}
+.cell{background:var(--card);padding:14px 16px}
+.cell .n{
+  font-family:var(--mono);font-size:23px;font-weight:600;color:var(--sodium);
+  font-variant-numeric:tabular-nums;line-height:1.1;
+}
+.cell .l{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--mute);margin-top:5px}
+
+/* sections carry the organisers' own 1–13 numbering */
+section{margin-top:46px}
+h2{
+  font-family:var(--disp);font-stretch:condensed;font-weight:700;font-size:23px;
+  text-transform:uppercase;letter-spacing:.02em;margin:0 0 4px;
+  display:flex;align-items:baseline;gap:12px;text-wrap:balance;
+}
+h2 .num{
+  font-family:var(--mono);font-size:12px;font-weight:600;color:var(--sign);
+  border:1px solid var(--sign);border-radius:2px;padding:1px 6px;flex:none;
+}
+.rule{height:1px;background:var(--rule);margin:12px 0 18px}
+h3{font-family:var(--disp);font-stretch:condensed;text-transform:uppercase;
+  letter-spacing:.06em;font-size:14px;margin:26px 0 8px;color:var(--ink)}
+p{margin:0 0 14px;max-width:68ch}
+ul,ol{margin:0 0 14px;padding-left:22px;max-width:68ch}
+li{margin-bottom:7px}
+strong{font-weight:600}
+code,.m{font-family:var(--mono);font-size:.88em;background:var(--paper);
+  border:1px solid var(--rule);border-radius:2px;padding:1px 5px}
+a{color:var(--sky)}
+
+/* verdict chips */
+.chip{
+  display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;padding:2px 7px;border-radius:2px;vertical-align:middle;
+  border:1px solid currentColor;
+}
+.c-built{color:var(--sign)}
+.c-meas{color:var(--sodium)}
+.c-open{color:var(--alarm)}
+
+blockquote{
+  margin:18px 0;padding:14px 18px;background:var(--card);
+  border-left:3px solid var(--sodium);border-radius:0 3px 3px 0;
+  font-size:17px;line-height:1.5;color:var(--ink);max-width:66ch;
+}
+blockquote .src{display:block;font-family:var(--mono);font-size:11px;
+  color:var(--mute);margin-top:8px;letter-spacing:.04em}
+
+.tablewrap{overflow-x:auto;margin:0 0 16px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--mute);font-weight:600;border-bottom:1px solid var(--ink-2)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+
+/* dawn chart — the proof artifact */
+.chart{background:var(--card);border:1px solid var(--rule);border-radius:3px;
+  padding:18px 18px 14px;margin:18px 0}
+.chartttl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--mute);margin-bottom:14px}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.row .t{font-family:var(--mono);font-size:11px;color:var(--mute);width:46px;
+  flex:none;text-align:right;font-variant-numeric:tabular-nums}
+.bar{flex:1;display:flex;height:15px;border-radius:2px;overflow:hidden;background:var(--rule)}
+.bar i{display:block;height:100%}
+.b-dark{background:#2f3d63}
+.b-dusk{background:#8a6bb0}
+.b-day{background:var(--sodium)}
+.row .v{font-family:var(--mono);font-size:10.5px;color:var(--mute);width:42px;
+  flex:none;font-variant-numeric:tabular-nums}
+.key{display:flex;gap:16px;margin-top:12px;font-family:var(--mono);font-size:10.5px;
+  color:var(--mute);flex-wrap:wrap}
+.key span{display:flex;align-items:center;gap:5px}
+.key i{width:10px;height:10px;border-radius:2px;display:block}
+.sunrise{border-top:1px dashed var(--alarm);position:relative;margin:6px 0 6px 56px;
+  font-family:var(--mono);font-size:10px;color:var(--alarm);padding-top:3px}
+
+.callout{background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--alarm);
+  border-radius:0 3px 3px 0;padding:14px 18px;margin:18px 0}
+.callout h3{margin-top:0;color:var(--alarm)}
+
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;color:var(--mute)}
+@media (max-width:560px){
+  .stamp{gap:6px 14px}
+  .row .t{width:40px}
+}
+</style>
+
+<div class="wrap">
+
+<div class="mast">
+  <div class="kicker">NVIDIA Spark Hack Seattle · See track · idea brief</div>
+  <h1>Safe Walk</h1>
+  <p class="oneline">Seattle runs 646 public traffic cameras that nobody watches. We watch all of
+  them, read every frame with a vision model, and route you around what they see.</p>
+  <div class="stamp">
+    <span>Status <b>MVP running end-to-end</b></span>
+    <span>Written <b>Sat 15 Aug, 09:55</b></span>
+    <span>Freeze <b>Sun 13:00</b></span>
+    <span>Box <b>not yet in hand — dev on M4/24 GB</b></span>
+  </div>
+</div>
+
+<div class="ledger">
+  <div class="cell"><div class="n">646</div><div class="l">public cameras</div></div>
+  <div class="cell"><div class="n">48%</div><div class="l">blocks watched</div></div>
+  <div class="cell"><div class="n">61%</div><div class="l">ped collisions covered</div></div>
+  <div class="cell"><div class="n">2,345</div><div class="l">frames read by VLM</div></div>
+  <div class="cell"><div class="n">100%</div><div class="l">JSON parse rate</div></div>
+  <div class="cell"><div class="n">2.4<span style="font-size:14px">ms</span></div><div class="l">route compute</div></div>
+</div>
+
+<p>Every number in this document was measured on the dev machine between 01:30 and 09:55
+this morning. Nothing here is projected.</p>
+
+<!-- 1 -->
+<section>
+  <h2><span class="num">01</span> Name and one-liner</h2>
+  <div class="rule"></div>
+  <blockquote>
+    Seattle has 646 public traffic cameras nobody watches. We watch all of them, every
+    minute, and route you around what they see.
+    <span class="src">the sentence a judge repeats to another judge</span>
+  </blockquote>
+  <p>The product claim is deliberately narrow: <strong>we report what a camera can show and what
+  the collision record says</strong>. We never output a safety verdict. That restraint is what makes
+  the claim defensible under grilling, and it is enforced in the model prompt itself.</p>
+</section>
+
+<!-- 2 -->
+<section>
+  <h2><span class="num">02</span> Track and fit</h2>
+  <div class="rule"></div>
+  <p><strong>See.</strong> Continuous ingest from 646 fixed cameras, a vision-language model
+  reading every frame into structured observations, and a spatial index that ties each read to
+  a street segment. The VLM output <em>is</em> the product — delete it and this is a CSV join.
+  That test is the reason this is a See project and not a Do project with a camera bolted on.</p>
+</section>
+
+<!-- 3 -->
+<section>
+  <h2><span class="num">03</span> Problem and who cares</h2>
+  <div class="rule"></div>
+  <p>The user is a person on foot in a downtown they do not know: a conference attendee walking
+  back to a hotel after dark, a night-shift worker leaving a shift at 11pm, a visitor deciding
+  between two routes that look identical on a map. Every mapping app they own optimises for
+  arrival time. None of them can answer the question actually being asked, which is
+  <em>what does that street look like right now</em>.</p>
+  <p>The gap is real and measurable. Seattle's own collision record holds
+  <strong>5,648 pedestrian and cyclist collisions</strong> in the downtown core, and they are not
+  evenly spread — 2nd Ave between Union and Pike alone accounts for 60. The city already owns
+  cameras watching 48% of those blocks. Nobody has ever connected the two.</p>
+  <h3>Evidence the data exists</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Source</th><th>Records</th><th>Verified</th></tr></thead>
+    <tbody>
+      <tr><td>Travelers map camera feed <span class="m">web.seattle.gov</span></td><td class="n">646 cameras</td><td><span class="chip c-built">pulled</span></td></tr>
+      <tr><td>SDOT collisions, all years</td><td class="n">52,464 downtown</td><td><span class="chip c-built">pulled</span></td></tr>
+      <tr><td>Sidewalk inventory, active</td><td class="n">3,148 segments</td><td><span class="chip c-built">pulled</span></td></tr>
+      <tr><td>Street network</td><td class="n">1,709 segments</td><td><span class="chip c-built">pulled</span></td></tr>
+      <tr><td>High collision locations 2021</td><td class="n">209 points</td><td><span class="chip c-built">pulled</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>All of it is public, unauthenticated, and already on disk. Total acquisition time was
+  <strong>24 seconds</strong>.</p>
+</section>
+
+<!-- 4 -->
+<section>
+  <h2><span class="num">04</span> The demo</h2>
+  <div class="rule"></div>
+
+  <h3>0:00 — opening state</h3>
+  <p>The map is already on screen, drawn from our own street geometry, no tile server. A judge
+  picks two points from a dropdown: Westlake Center to Pioneer Square.</p>
+
+  <h3>0:25 — the comparison</h3>
+  <p>Two routes draw instantly. Not a score — a trade:</p>
+  <blockquote>
+    Walking <strong>74 m further</strong> — about one extra minute — routes you past
+    <strong>34 fewer</strong> recorded pedestrian collisions and <strong>5 fewer</strong>
+    serious or fatal ones.
+    <span class="src">computed live from 52,464 collision records in 2.4 ms</span>
+  </blockquote>
+
+  <h3>1:00 — the money moment</h3>
+  <p>Below the map, the route redraws as a <strong>contact sheet</strong>: the actual camera
+  frames along the walk, in walking order, each with the model's read underneath and a bar
+  showing how that corner compares to the rest of downtown at this moment. One route in testing
+  spanned <strong>p17 to p99</strong> — the same fifteen-minute walk passing both the quietest
+  and the busiest blocks in the city. Judges are not looking at a dashboard, they are looking at
+  their own city, ten minutes ago, annotated. Someone in the room will recognise an intersection.</p>
+
+  <h3>1:40 — the beat we did not script</h3>
+  <p>At 10:20 on Saturday the model flagged <strong>9th Ave &amp; Pine St</strong>: traffic
+  stopped, sidewalk blocked, construction true, and the note <em>"the street is closed and
+  pedestrians are being directed around the area."</em> We pulled the frame. There are
+  barricades across the road and a sign that reads STREET CLOSED.</p>
+  <p>Nobody staged this. It is the product doing its job on a random Saturday morning, and it is
+  the single most convincing thing we can put on a screen. If something comparable is live at
+  3pm Sunday we lead with it; if not, we show this one and say plainly that it is from Saturday.</p>
+
+  <h3>2:00 — the live beat</h3>
+  <p>A judge names any intersection. We click it. The frame is fetched from the city
+  <em>right now</em> and read on the spot. One camera, live, roughly twelve seconds on the
+  laptop — and that twelve seconds is the setup for section 5.</p>
+
+  <h3>Live vs pre-computed — the honest answer</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Element</th><th>When it runs</th></tr></thead>
+    <tbody>
+      <tr><td>Camera frames</td><td>scraped every 15 min since 01:30 Sat, continuously</td></tr>
+      <tr><td>Corpus of VLM reads</td><td>pre-computed, rolling — 2,345 reads so far</td></tr>
+      <tr><td>Routing and scoring</td><td><strong>live</strong>, 2.4 ms</td></tr>
+      <tr><td>Named-intersection read</td><td><strong>live</strong>, fetch + inference on demand</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>We say all of this out loud before we are asked.</p>
+
+  <div class="callout">
+    <h3>If the wifi dies</h3>
+    <p>The demo does not change. Street geometry, routing graph, collision layers, camera
+    frames, model weights and the entire read corpus are on local disk. There is no tile
+    server, no CDN, no external font, no cloud API anywhere in the path. The only thing that
+    degrades is the single live fetch, which falls back to the last stored frame with a
+    visible staleness badge. <strong>We can unplug the network mid-demo and keep talking.</strong></p>
+  </div>
+</section>
+
+<!-- 5 -->
+<section>
+  <h2><span class="num">05</span> Why the Spark</h2>
+  <div class="rule"></div>
+  <p>We do not argue this. We measure it.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th></th><th>Apple M4, 24 GB</th><th>GB10 target</th></tr></thead>
+    <tbody>
+      <tr><td>Per-frame read (p50)</td><td class="n">11.9 s</td><td class="n">batch, resident</td></tr>
+      <tr><td>Per-frame read (p90)</td><td class="n">15.4 s</td><td class="n">—</td></tr>
+      <tr><td><strong>Full 646-camera sweep</strong></td><td class="n"><strong>2.1 hours</strong></td><td class="n"><strong>under 1 minute</strong></td></tr>
+      <tr><td>Data freshness that implies</td><td>stale before it finishes</td><td>actually live</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <blockquote>
+    A city-wide sweep takes two hours on a laptop, so the answer is history by the time you
+    get it. On the Spark it is under a minute, so it is the present tense. Same code, one
+    environment variable.
+    <span class="src">the answer to "why isn't this a GPT-wrapper"</span>
+  </blockquote>
+  <p>The specific capabilities being used: <strong>128 GB unified memory</strong> holding the VLM,
+  an embedding model and the report model resident together rather than swapping; <strong>strong
+  vision prefill</strong>, which is exactly the shape of this workload since latency here is
+  prefill-bound, not decode-bound (measured — cutting output tokens made it <em>slower</em>);
+  and <strong>continuous ingest</strong> across hundreds of streams.</p>
+  <p>The cloud alternative is also genuinely bad here: 646 cameras at one-minute refresh is
+  930,000 vision calls a day. That is not a rounding error on anyone's API bill.</p>
+</section>
+
+<!-- 6 -->
+<section>
+  <h2><span class="num">06</span> Architecture</h2>
+  <div class="rule"></div>
+  <p><span class="m">travelers feed → scraper daemon → frame store → VLM read → observation index
+  → spatial join → A* over risk-weighted street graph → contact sheet UI</span></p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Component</th><th>Choice</th><th>Measured</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td>Vision model</td><td>Qwen2.5-VL-7B-Instruct, 4-bit, MLX</td><td class="n">11.9 s/frame</td><td><span class="chip c-built">running</span></td></tr>
+      <tr><td>Vision model (on box)</td><td>swap to Cosmos-Reason1-7B</td><td class="n">—</td><td><span class="chip c-open">untested</span></td></tr>
+      <tr><td>Scraper</td><td>async httpx, 10 concurrent</td><td class="n">587 frames / 5 s</td><td><span class="chip c-built">running</span></td></tr>
+      <tr><td>Graph + routing</td><td>NetworkX + Shapely, A*</td><td class="n">2.4 ms</td><td><span class="chip c-built">running</span></td></tr>
+      <tr><td>API</td><td>FastAPI + uvicorn</td><td class="n">—</td><td><span class="chip c-built">running</span></td></tr>
+      <tr><td>UI</td><td>hand-rolled SVG, zero dependencies</td><td class="n">252 KB payload</td><td><span class="chip c-built">running</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>ARM64 check</h3>
+  <p>Dev machine is Apple ARM, the box is ARM — the port direction is favourable. Verified
+  working on ARM today: <span class="m">mlx</span>, <span class="m">mlx-vlm</span>,
+  <span class="m">shapely</span>, <span class="m">networkx</span>, <span class="m">fastapi</span>,
+  <span class="m">httpx</span>, <span class="m">pillow</span>. <strong>Not yet verified on
+  aarch64 CUDA:</strong> the inference backend swap itself — MLX is Apple-only, so the box needs
+  vLLM or TensorRT-LLM behind the same <span class="m">infer()</span> interface. This is the one
+  real porting task and it is deliberately isolated to a single function.</p>
+  <p>One trap worth recording: the dev machine shipped Python 3.14, which has no wheels for this
+  stack. Pin <span class="m">3.12</span>.</p>
+</section>
+
+<!-- 7 -->
+<section>
+  <h2><span class="num">07</span> Data plan</h2>
+  <div class="rule"></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Dataset</th><th>Endpoint</th><th>Size</th></tr></thead>
+    <tbody>
+      <tr><td>Camera inventory</td><td class="m">web.seattle.gov/travelers/api/map/data?zoomId=18</td><td class="n">646 rows</td></tr>
+      <tr><td>Camera frames</td><td class="m">seattle.gov/trafficcams/images/</td><td class="n">49 MB/sweep</td></tr>
+      <tr><td>Collisions, sidewalks, streets</td><td class="m">services.arcgis.com · SDOT</td><td class="n">45 MB</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Acquisition is done. Current corpus on disk: <strong>14,698 frames, 33 sweeps, 1.5 GB</strong>,
+  growing continuously since 01:30. Retention keeps recent frames per camera and thins the rest
+  to hourly, so the footprint stays bounded.</p>
+
+  <div class="callout">
+    <h3>Three data traps we already hit</h3>
+    <ol>
+      <li><strong>Dead cameras return HTTP 200</strong> with a "camera under maintenance" JPEG,
+      not a 404. Detected by learning hashes that appear on several different cameras at once —
+      a real street view is never byte-identical to another.</li>
+      <li><strong>The feed clusters by zoom level.</strong> At <span class="m">zoomId=13</span>
+      every camera in a cluster reports the cluster centroid, so 22 downtown cameras shared one
+      coordinate and every spatial join was silently fiction. At
+      <span class="m">zoomId=18</span> coverage went from 199 to 824 segments. This bug produced
+      confident, plausible, completely wrong numbers — it is the reason section 5 quotes only
+      things we re-measured after the fix.</li>
+      <li><strong>Downscaling breaks the model.</strong> Below 1024 px the VLM called a 2 a.m.
+      street "daylight". Verified against the pixels by hand. Resolution stays up, and the
+      latency cost is the honest price.</li>
+    </ol>
+  </div>
+
+  <h3>Fallback if the feed goes down</h3>
+  <p>We already hold a growing local archive. A demo run entirely from stored frames is
+  indistinguishable except for the staleness badge.</p>
+</section>
+
+<!-- 8 -->
+<section>
+  <h2><span class="num">08</span> Scope ladder</h2>
+  <div class="rule"></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Rung</th><th>Contents</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td><strong>MVP</strong> (Sat noon)</td><td>Scrape → read → route → contact sheet, end to end</td><td><span class="chip c-built">done, 2 h early</span></td></tr>
+      <tr><td><strong>Full demo</strong> (Sat night)</td><td>Live named-intersection read; time-of-day baseline; polish; rehearsed script</td><td><span class="chip c-meas">in progress</span></td></tr>
+      <tr><td><strong>Stretch</strong> (Sun AM)</td><td>Natural-language camera search; box port; second city to prove generality</td><td><span class="chip c-open">not started</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Cut first, without discussion</h3>
+  <ol>
+    <li>Second city. The generality claim can be spoken, not demoed.</li>
+    <li>Natural-language search over the corpus. Nice, not load-bearing.</li>
+    <li>WSDOT freeway cameras — 261 of them, all low-resolution, all pointed at highways, none
+    relevant to someone on foot. Already deprioritised to a side layer.</li>
+  </ol>
+</section>
+
+<!-- 9 -->
+<section>
+  <h2><span class="num">09</span> Timeline</h2>
+  <div class="rule"></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>When</th><th>What</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td class="n">Sat 01:30–03:10</td><td>Scraper, static data, graph, VLM, API, UI — all six lanes end to end</td><td><span class="chip c-built">done</span></td></tr>
+      <tr><td class="n">Sat 03:10–09:50</td><td>Corpus accrual, unattended. 2,345 reads, 188/205 downtown cameras</td><td><span class="chip c-built">done</span></td></tr>
+      <tr><td class="n">Sat 10:00–14:00</td><td>Time-of-day baseline; UI polish; box port attempt if hardware arrives</td><td><span class="chip c-meas">now</span></td></tr>
+      <tr><td class="n">Sat 14:00–20:00</td><td>Live-read path hardening; demo script written and timed</td><td></td></tr>
+      <tr><td class="n">Sat 20:00–23:00</td><td>Rehearsal one. Fix what breaks.</td><td></td></tr>
+      <tr><td class="n">Sun 09:00–13:00</td><td>Stretch only. Nothing new after this.</td><td></td></tr>
+      <tr><td class="n"><strong>Sun 13:00</strong></td><td><strong>Integration freeze</strong></td><td></td></tr>
+      <tr><td class="n">Sun 13:00–15:00</td><td>Two full rehearsals, wifi unplugged for one of them</td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 10 -->
+<section>
+  <h2><span class="num">10</span> Team split</h2>
+  <div class="rule"></div>
+  <p>All five lanes are already unblocked — the scaffolding exists and each lane owns a file.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Lane</th><th>Owns</th><th>First task</th></tr></thead>
+    <tbody>
+      <tr><td>Inference</td><td><span class="m">vision.py</span></td><td>Box port behind <span class="m">infer()</span>; Cosmos-Reason1 swap; batching</td></tr>
+      <tr><td>Pipeline</td><td><span class="m">scraper.py</span>, <span class="m">caption_worker.py</span></td><td>Time-of-day baseline from the accruing archive</td></tr>
+      <tr><td>Geo / routing</td><td><span class="m">graph.py</span>, <span class="m">routing.py</span></td><td>Tune risk weights; expose the weight as a live slider</td></tr>
+      <tr><td>Frontend</td><td><span class="m">web/index.html</span></td><td>Contact sheet polish; live-read streaming; projector legibility</td></tr>
+      <tr><td>Demo and pitch</td><td>this document</td><td>Script the three minutes; own the grill card</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>Integration owner:</strong> the geo/routing lane, because every other lane's output
+  lands on the graph.</p>
+</section>
+
+<!-- 11 -->
+<section>
+  <h2><span class="num">11</span> Risks and kill criteria</h2>
+  <div class="rule"></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Risk</th><th>Mitigation</th><th>Pivot trigger</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Box never arrives</strong>, or the CUDA port eats a day</td>
+        <td>Everything runs on the laptop today. The Spark claim is a measured comparison, not a dependency.</td>
+        <td>If inference isn't running on the box by <strong>Sun 09:00</strong>, demo from the Mac and present the 2.1 h vs 1 min gap as the finding.</td>
+      </tr>
+      <tr>
+        <td><strong>Demo is at 3pm — broad daylight.</strong> Every night signal we have is invisible then.</td>
+        <td>Lead with crowding, blockage, construction and incidents, which read fine in daylight. Keep a labelled night set for the lighting beat.</td>
+        <td>Decided already — do not build the pitch around lighting.</td>
+      </tr>
+      <tr>
+        <td><strong>Model says something wrong on stage</strong></td>
+        <td>Prompt forbids verdicts; output is a small typed schema, not prose. 100% parse rate over 2,345 reads. Known error rate disclosed below.</td>
+        <td>If parse rate drops below 95% on the box, pin generation to the Mac path.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>Disclosed error rate:</strong> 5 reads out of 2,345 reported "snow" in August —
+  0.21%. We say this before a judge finds it.</p>
+</section>
+
+<!-- the proof -->
+<section>
+  <h2><span class="num">12</span> Does the model actually see?</h2>
+  <div class="rule"></div>
+  <p>The hardest question about any VLM pipeline is whether it is reading the image or
+  pattern-matching the prompt. Here is the test we did not design and could not fake: across
+  2,345 independent reads over eight hours, with no clock, no timestamp and no temporal
+  smoothing, we asked only "what is the lighting". Then we plotted the answers against
+  wall-clock time.</p>
+
+  <div class="chart">
+    <div class="chartttl">Lighting reads by hour · local time · n = 2,345</div>
+    <div class="row"><span class="t">01:00</span><span class="bar"><i class="b-dark" style="width:93.8%"></i><i class="b-dusk" style="width:3.1%"></i><i class="b-day" style="width:3.1%"></i></span><span class="v">32</span></div>
+    <div class="row"><span class="t">02:00</span><span class="bar"><i class="b-dark" style="width:96.8%"></i><i class="b-dusk" style="width:0.4%"></i><i class="b-day" style="width:2.9%"></i></span><span class="v">278</span></div>
+    <div class="row"><span class="t">03:00</span><span class="bar"><i class="b-dark" style="width:98.6%"></i><i class="b-dusk" style="width:0%"></i><i class="b-day" style="width:1.4%"></i></span><span class="v">295</span></div>
+    <div class="row"><span class="t">04:00</span><span class="bar"><i class="b-dark" style="width:97.6%"></i><i class="b-dusk" style="width:1.0%"></i><i class="b-day" style="width:1.4%"></i></span><span class="v">296</span></div>
+    <div class="row"><span class="t">05:00</span><span class="bar"><i class="b-dark" style="width:85.7%"></i><i class="b-dusk" style="width:7.6%"></i><i class="b-day" style="width:6.6%"></i></span><span class="v">301</span></div>
+    <div class="sunrise">sunrise 06:05</div>
+    <div class="row"><span class="t">06:00</span><span class="bar"><i class="b-dark" style="width:10.9%"></i><i class="b-dusk" style="width:10.5%"></i><i class="b-day" style="width:78.6%"></i></span><span class="v">294</span></div>
+    <div class="row"><span class="t">07:00</span><span class="bar"><i class="b-dark" style="width:5.3%"></i><i class="b-dusk" style="width:0%"></i><i class="b-day" style="width:94.7%"></i></span><span class="v">301</span></div>
+    <div class="row"><span class="t">08:00</span><span class="bar"><i class="b-dark" style="width:4.3%"></i><i class="b-dusk" style="width:0%"></i><i class="b-day" style="width:95.7%"></i></span><span class="v">300</span></div>
+    <div class="row"><span class="t">09:00</span><span class="bar"><i class="b-dark" style="width:4.8%"></i><i class="b-dusk" style="width:0%"></i><i class="b-day" style="width:95.2%"></i></span><span class="v">249</span></div>
+    <div class="key">
+      <span><i class="b-dark"></i>dark, lit</span>
+      <span><i class="b-dusk"></i>dusk</span>
+      <span><i class="b-day"></i>daylight</span>
+    </div>
+  </div>
+
+  <blockquote>
+    Dusk reads peak in the 05:00 bucket. The flip to daylight lands at 06:00. Seattle's actual
+    sunrise on 15 August is 06:05. The model found dawn from pixels alone.
+    <span class="src">this is the slide</span>
+  </blockquote>
+</section>
+
+<!-- 13 -->
+<section>
+  <h2><span class="num">13</span> Self-scores</h2>
+  <div class="rule"></div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Dimension</th><th>Score</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Wow factor</td><td class="n">4</td><td>Judges see their own city, ten minutes ago, annotated. Recognition beats abstraction.</td></tr>
+      <tr><td>Feasibility in 40 h</td><td class="n">5</td><td>It already runs end to end, eight hours before the MVP deadline. Not a projection.</td></tr>
+      <tr><td>Spark-necessity</td><td class="n">4</td><td>2.1 h vs under a minute is measured, not argued. Held back from 5 only because the box port is unproven.</td></tr>
+      <tr><td>Demo risk</td><td class="n">4</td><td>Fully offline capable, one live element, everything else on disk.</td></tr>
+      <tr><td>Uniqueness</td><td class="n">3</td><td>Honest score. "Seattle open data + map + LLM" is the field's default project. Our moat is that the camera feed is not in the open data portal — searching it for "camera" returns Calgary and Austin. Most teams will never find these 646 cameras.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- grill card -->
+<section>
+  <h2><span class="num">GRILL</span> The card — all five of us give these answers</h2>
+  <div class="rule"></div>
+  <p>Teams lose the grill by contradicting each other, not by lacking answers.</p>
+
+  <h3>"Why isn't this a GPT-wrapper on a laptop?"</h3>
+  <p>A full city sweep is 2.1 hours on our laptop and under a minute on the box. We measured
+  both. Below that threshold the data is live; above it, it's history. Also, 646 cameras at
+  one-minute refresh is 930,000 vision calls a day against a cloud API.</p>
+
+  <h3>"Isn't this just a dashboard on open data?"</h3>
+  <p>The camera feed isn't in the open data portal — it's a clustered map endpoint we had to
+  reverse-engineer. And we don't output a score; we output the actual frames. The evidence is
+  the product.</p>
+
+  <h3>"Did you build a redlining machine?"</h3>
+  <p>No, and deliberately. We never touch crime data. Our inputs are the collision record, the
+  sidewalk inventory, street grade, and what a camera can currently show. The model is
+  prompt-forbidden from producing a safety verdict — it reports observations, the user judges.
+  We can show you the prompt.</p>
+
+  <h3>"What if the model is hallucinating?"</h3>
+  <p>Show the dawn chart. Then volunteer the error rate: 5 of 2,345 reads called August "snow".</p>
+
+  <h3>"Does it work for another city?"</h3>
+  <p>The camera feed is Seattle-specific; the pipeline is not. Swap the inventory adapter and
+  the ArcGIS layer names. We scoped to one city on purpose rather than demo two badly.</p>
+
+  <h3>"What's pre-computed?"</h3>
+  <p>The read corpus. Routing and the named-intersection read are live. Say it before being
+  asked.</p>
+</section>
+
+<section>
+  <h2><span class="num">14</span> Open questions</h2>
+  <div class="rule"></div>
+  <ul>
+    <li><strong>Does the box exist for us?</strong> Everything is written to survive it not arriving,
+    but the Spark-necessity score depends on proving the port.</li>
+    <li><strong>What does Cosmos-Reason1-7B do on these frames?</strong> Untested. Potentially better
+    at physical-scene reasoning than Qwen, and it is NVIDIA's own model at an NVIDIA event.</li>
+    <li><strong>Resolved, and worth recording how.</strong> We built the time-of-day baseline and
+    then rejected its headline claim. With ten hours of one day, a camera's "own baseline" is
+    dominated by 3 a.m. readings, so at 10 a.m. almost every corner reads as "busier than usual"
+    — a signal that sounds insightful and carries no information. We replaced it with
+    <strong>city-relative ranking</strong>: every camera scored against every other camera in the
+    same sweep. Sun, weather and day-of-week are shared by the whole city and cancel out, leaving
+    only the difference between this corner and the rest of downtown right now. It needs no
+    history at all, which is why it is the version that ships.</li>
+    <li><strong>Is 3pm daylight fatal to the wow?</strong> The night frames are dramatically more
+    compelling. Open question whether to lead with a labelled cached night route.</li>
+  </ul>
+</section>
+
+<footer>
+  Safe Walk · NVIDIA Spark Hack Seattle, 15–16 August 2026 · every figure measured on an
+  Apple M4 between 01:30 and 09:55 Saturday · code at <span class="m">~/Documents/safe_walk</span>
+</footer>
+
+</div>

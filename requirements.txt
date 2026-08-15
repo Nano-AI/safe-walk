@@ -1,0 +1,12 @@
+# Python 3.12 (3.14 has no wheels for the MLX stack — pin 3.12).
+# Apple Silicon inference path; on the DGX Spark swap mlx/mlx-vlm for vLLM behind vision.caption_frame().
+fastapi==0.141.1
+uvicorn==0.52.3
+httpx==0.28.1
+networkx==3.6.1
+shapely==2.1.2
+pillow==12.3.0
+numpy==2.5.2
+mlx==0.32.0
+mlx-vlm==0.6.13
+huggingface-hub==1.27.0

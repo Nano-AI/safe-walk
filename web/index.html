@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Safe Walk — Seattle</title>
+<style>
+/* ── tokens ───────────────────────────────────────────────────────────────
+   Palette sampled from the camera frames themselves: wet night asphalt,
+   sodium streetlight, signal red, signal green, and the green of Seattle's
+   own street-name plates.                                                   */
+:root{
+  --asphalt:#101318;
+  --panel:#181d24;
+  --panel-2:#1f252e;
+  --sodium:#f2a93b;
+  --signal-red:#e8443a;
+  --signal-green:#3ddc84;
+  --sign-green:#1c6b46;
+  --concrete:#c3cad4;
+  --haze:#727d8c;
+  --line:#262d37;
+
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --cond:"Helvetica Neue","Arial Narrow",var(--sans);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--asphalt);color:var(--concrete);font-family:var(--sans);
+  font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+
+/* ── masthead ─────────────────────────────────────────────────────────── */
+header{
+  display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;
+  padding:12px 20px;border-bottom:1px solid var(--line);
+  background:linear-gradient(var(--panel),var(--asphalt));flex:none;
+}
+h1{
+  font-family:var(--cond);font-stretch:condensed;font-size:19px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.16em;color:#fff;
+}
+h1 .mark{color:var(--sodium)}
+.sub{font-family:var(--mono);font-size:11px;color:var(--haze);letter-spacing:.04em}
+.stats{margin-left:auto;display:flex;gap:20px;font-family:var(--mono);font-size:11px}
+.stats b{display:block;color:var(--sodium);font-size:15px;font-weight:600}
+.stats span{color:var(--haze);text-transform:uppercase;letter-spacing:.08em;font-size:9px}
+
+/* ── layout ───────────────────────────────────────────────────────────── */
+main{flex:1;display:grid;grid-template-columns:1fr 340px;min-height:0}
+#mapwrap{position:relative;min-height:0;background:var(--asphalt)}
+svg{width:100%;height:100%;display:block}
+.seg{stroke:var(--line);stroke-width:1;fill:none;vector-effect:non-scaling-stroke}
+.seg.watched{stroke:#2e3947}
+.campin{fill:var(--sign-green);opacity:.55}
+.route-direct{stroke:var(--sodium);stroke-width:5;opacity:.85;fill:none;stroke-linecap:round;
+  stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.route-safer{stroke:var(--signal-green);stroke-width:3.5;fill:none;stroke-linecap:round;
+  stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-dasharray:9 7}
+.endpin{fill:#fff;stroke:var(--asphalt);stroke-width:2}
+.activecam{fill:var(--sodium);stroke:var(--asphalt);stroke-width:1.5}
+
+/* ── control panel ────────────────────────────────────────────────────── */
+aside{
+  border-left:1px solid var(--line);background:var(--panel);min-height:0;
+  padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:13px;
+  scrollbar-width:thin;
+}
+label{font-family:var(--mono);font-size:10px;text-transform:uppercase;
+  letter-spacing:.12em;color:var(--haze);display:block;margin-bottom:5px}
+select{
+  width:100%;padding:8px 10px;background:var(--panel-2);color:var(--concrete);
+  border:1px solid var(--line);border-radius:3px;font-family:var(--sans);font-size:13px;
+}
+select:focus-visible,button:focus-visible,.tile:focus-visible{
+  outline:2px solid var(--sodium);outline-offset:2px}
+button{
+  width:100%;padding:10px;background:var(--sodium);color:#12161b;border:0;
+  border-radius:3px;font-family:var(--cond);font-stretch:condensed;font-weight:700;
+  text-transform:uppercase;letter-spacing:.12em;font-size:13px;cursor:pointer;
+}
+button:hover{background:#ffc061}
+button[disabled]{opacity:.5;cursor:default}
+
+/* route comparison cards */
+.card{border:1px solid var(--line);border-radius:4px;padding:11px 12px;background:var(--panel-2)}
+.card.direct{border-left:3px solid var(--sodium)}
+.card.safer{border-left:3px solid var(--signal-green)}
+.card h3{font-family:var(--cond);font-stretch:condensed;text-transform:uppercase;
+  letter-spacing:.14em;font-size:12px;color:#fff;margin-bottom:6px}
+.figs{display:flex;gap:14px;font-family:var(--mono);font-size:11px;color:var(--haze)}
+.figs b{color:var(--concrete);font-size:14px;display:block;line-height:1.25}
+.bar{height:5px;background:var(--line);border-radius:3px;margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--signal-red)}
+.barlabel{font-family:var(--mono);font-size:10px;color:var(--haze);margin-top:5px}
+.verdict{
+  font-family:var(--mono);font-size:11px;line-height:1.6;color:var(--concrete);
+  border-left:2px solid var(--sign-green);padding-left:10px;
+}
+.verdict em{color:var(--signal-green);font-style:normal}
+
+/* knobs: detour appetite + camera toggle */
+.knob{display:flex;align-items:center;gap:10px}
+.knob label{margin:0;flex:1}
+.knob .v{font-family:var(--mono);font-size:11px;color:var(--sodium);min-width:28px;text-align:right}
+input[type=range]{width:100%;accent-color:var(--sodium);margin-top:2px}
+.chk{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;
+  color:var(--haze);text-transform:none;letter-spacing:.02em;cursor:pointer;margin:0}
+.chk input{accent-color:var(--signal-green);width:13px;height:13px;margin:0}
+
+/* what the cameras added */
+.livebox{border:1px solid var(--line);border-radius:4px;padding:9px 12px;background:var(--panel-2);
+  font-family:var(--mono);font-size:10.5px;line-height:1.6;color:var(--haze)}
+.livebox b{color:var(--concrete);font-weight:600}
+.livebox ul{list-style:none;margin-top:4px}
+.livebox li{padding-left:10px;border-left:2px solid var(--signal-red);margin-top:4px;color:var(--concrete)}
+.livebox li.avoid{border-left-color:var(--signal-green)}
+.livebox li .why{color:var(--signal-red)}
+.livebox li.avoid .why{color:var(--signal-green)}
+.livebox li .cam{color:var(--haze)}
+
+.tile.flag{border-color:var(--signal-red)}
+.tile .age{color:var(--haze);font-size:9px;white-space:nowrap}
+.tile .age.stale{color:#5b6472}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;
+  text-transform:uppercase;padding:2px 7px;border-radius:2px;margin-left:8px;vertical-align:middle}
+.badge.live{background:#40201d;color:var(--signal-red)}
+.badge.stored{background:#2b2f45;color:#9aa6ff}
+
+/* ── contact sheet: the signature ─────────────────────────────────────── */
+#sheet{
+  flex:none;border-top:1px solid var(--line);background:var(--panel);
+  padding:12px 20px 16px;max-height:37vh;overflow-y:auto;
+}
+.sheethead{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+.sheethead h2{font-family:var(--cond);font-stretch:condensed;font-size:13px;
+  text-transform:uppercase;letter-spacing:.16em;color:#fff}
+.sheethead .note{font-family:var(--mono);font-size:10px;color:var(--haze)}
+.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.tile{
+  flex:0 0 208px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:3px;overflow:hidden;cursor:pointer;text-align:left;padding:0;
+  transition:border-color .15s;
+}
+.tile:hover{border-color:var(--sodium)}
+.tile img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#0b0e12}
+.tile img.nofeed{background:repeating-linear-gradient(45deg,#0e1116,#0e1116 6px,#141920 6px,#141920 12px)}
+.tile .meta{min-height:88px}
+.tile .meta{padding:7px 8px;font-family:var(--mono);font-size:10px;line-height:1.5}
+.tile .where{color:var(--concrete);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;font-size:11px}
+.tile .read{color:var(--haze);margin-top:2px}
+.tile .note{color:var(--haze);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden}
+.tag{display:inline-block;padding:0 4px;border-radius:2px;margin-right:3px;
+  font-size:9px;letter-spacing:.04em}
+.rank{display:flex;align-items:center;gap:6px;margin-top:4px}
+.rank .track{flex:1;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+.rank .track i{display:block;height:100%;background:var(--sodium)}
+.rank .pv{font-size:9px;color:var(--haze);white-space:nowrap}
+.rank.hot .track i{background:var(--signal-red)}
+.t-dark{background:#2b2f45;color:#9aa6ff}
+.t-day{background:#3a3320;color:var(--sodium)}
+.t-wet{background:#173040;color:#63b8e8}
+.t-alert{background:#40201d;color:var(--signal-red)}
+.t-ok{background:#16301f;color:var(--signal-green)}
+.empty{font-family:var(--mono);font-size:11px;color:var(--haze);padding:16px 0}
+
+/* ── live read overlay ────────────────────────────────────────────────── */
+dialog{
+  border:1px solid var(--line);background:var(--panel);color:var(--concrete);
+  border-radius:5px;padding:0;max-width:min(720px,92vw);width:100%;
+  margin:auto;          /* the * reset above zeroes this, and a modal dialog
+                           centres itself with margin:auto — without it the
+                           overlay pins to the top-left corner */
+  max-height:92vh;overflow-y:auto;
+}
+dialog::backdrop{background:rgba(8,10,13,.82)}
+.dhead{display:flex;align-items:center;gap:10px;padding:12px 16px;
+  border-bottom:1px solid var(--line)}
+.dhead h3{font-family:var(--cond);font-stretch:condensed;text-transform:uppercase;
+  letter-spacing:.12em;font-size:13px;color:#fff}
+.dhead .close{margin-left:auto;width:auto;padding:5px 10px;background:transparent;
+  color:var(--haze);border:1px solid var(--line);font-size:11px}
+dialog img{width:100%;display:block;background:#0b0e12}
+.dbody{padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.7}
+.livedot{width:7px;height:7px;border-radius:50%;background:var(--signal-red);
+  box-shadow:0 0 0 0 rgba(232,68,58,.6);animation:pulse 1.8s infinite}
+@keyframes pulse{
+  70%{box-shadow:0 0 0 7px rgba(232,68,58,0)}
+  100%{box-shadow:0 0 0 0 rgba(232,68,58,0)}
+}
+kbd{font-family:var(--mono);background:var(--panel-2);border:1px solid var(--line);
+  border-radius:3px;padding:1px 5px;font-size:10px;color:var(--haze)}
+.pitch{margin-top:12px;padding:10px 12px;background:var(--panel-2);border-radius:3px;
+  border-left:2px solid var(--sodium);color:var(--concrete);line-height:1.6}
+.pitch b{color:var(--sodium)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:900px){
+  main{grid-template-columns:1fr;grid-template-rows:minmax(220px,1fr) auto}
+  aside{border-left:0;border-top:1px solid var(--line)}
+  .stats{width:100%;margin-left:0}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Safe<span class="mark">·</span>Walk</h1>
+  <span class="sub">seattle downtown · sdot traffic cameras</span>
+  <div class="stats" id="stats"></div>
+</header>
+
+<main>
+  <div id="mapwrap">
+    <svg id="map" role="img" aria-label="Downtown Seattle street network with the two routes drawn"></svg>
+  </div>
+
+  <aside>
+    <div>
+      <label for="from">Start</label>
+      <select id="from"></select>
+    </div>
+    <div>
+      <label for="to">Destination</label>
+      <select id="to"></select>
+    </div>
+    <div>
+      <div class="knob">
+        <label for="w">Detour appetite</label>
+        <span class="v" id="wval">3.0</span>
+      </div>
+      <input type="range" id="w" min="0" max="8" step="0.5" value="3"
+             aria-label="How many metres of detour one unit of risk is worth">
+    </div>
+    <label class="chk"><input type="checkbox" id="uselive" checked>
+      let fresh camera reads steer the route</label>
+    <button id="go">Compare routes</button>
+    <div id="results"></div>
+  </aside>
+</main>
+
+<section id="sheet">
+  <div class="sheethead">
+    <h2>What this walk looks like now</h2>
+    <span class="note" id="sheetnote">pick two points to see the cameras along the way</span>
+  </div>
+  <div class="strip" id="strip"><p class="empty">No route yet.</p></div>
+</section>
+
+<dialog id="live">
+  <div class="dhead">
+    <span class="livedot" aria-hidden="true"></span>
+    <h3 id="dtitle">Live read</h3>
+    <button class="close" id="dclose">Close <kbd>esc</kbd></button>
+  </div>
+  <img id="dimg" alt="">
+  <div class="dbody" id="dbody"></div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = p => fetch(p).then(r => r.ok ? r.json() : Promise.reject(r.status));
+
+let NET = null, PLACES = [], PROJ = null, CURRENT = null;
+
+/* ── projection: lon/lat -> svg space, latitude-corrected ─────────────── */
+function makeProjection(b, w, h){
+  const pad = 20;
+  const midLat = (b.lat_min + b.lat_max) / 2;
+  const kx = Math.cos(midLat * Math.PI / 180);
+  const spanX = (b.lon_max - b.lon_min) * kx;
+  const spanY = (b.lat_max - b.lat_min);
+  const scale = Math.min((w - pad*2) / spanX, (h - pad*2) / spanY);
+  const offX = (w - spanX * scale) / 2, offY = (h - spanY * scale) / 2;
+  return (lon, lat) => [
+    offX + (lon - b.lon_min) * kx * scale,
+    h - (offY + (lat - b.lat_min) * scale)
+  ];
+}
+
+/* The declared bbox stretches to the far end of the I-5 ramps, which squeezes
+   downtown into a corner. Frame on the route instead, with enough margin to
+   keep the surrounding grid legible as context. */
+function boundsOfRoute(res){
+  let latMin=90, latMax=-90, lonMin=180, lonMax=-180;
+  for(const key of ['direct','safer']){
+    const r = res[key]; if(!r) continue;
+    for(const s of r.segments) for(const [lon,lat] of s.geometry){
+      if(lat<latMin)latMin=lat; if(lat>latMax)latMax=lat;
+      if(lon<lonMin)lonMin=lon; if(lon>lonMax)lonMax=lon;
+    }
+  }
+  const padLat = Math.max((latMax-latMin)*0.55, 0.0045);
+  const padLon = Math.max((lonMax-lonMin)*0.55, 0.0065);
+  return {lat_min:latMin-padLat, lat_max:latMax+padLat,
+          lon_min:lonMin-padLon, lon_max:lonMax+padLon};
+}
+
+function pathFrom(coords){
+  return coords.map(([lon,lat],i) => (i?'L':'M') + PROJ(lon,lat).map(n=>n.toFixed(1)).join(' ')).join(' ');
+}
+
+function drawBase(bounds){
+  const wrap = $('#mapwrap'), svg = $('#map');
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  PROJ = makeProjection(bounds || NET.bbox, w, h);
+
+  const parts = [];
+  for(const s of NET.segments){
+    parts.push(`<path class="seg${s.c?' watched':''}" d="${pathFrom(s.g)}"/>`);
+  }
+  for(const c of NET.cameras){
+    const [x,y] = PROJ(c.lon, c.lat);
+    parts.push(`<circle class="campin" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.4"/>`);
+  }
+  svg.innerHTML = `<g id="base">${parts.join('')}</g><g id="overlay"></g>`;
+}
+
+function drawRoutes(res){
+  const o = [];
+  const draw = (r, cls) => {
+    if(!r) return;
+    const d = r.segments.map(s => pathFrom(s.geometry)).join(' ');
+    o.push(`<path class="${cls}" d="${d}"/>`);
+  };
+  draw(res.direct, 'route-direct');
+  draw(res.safer, 'route-safer');
+  // Where the two agree the safer line sits exactly on top; a dash pattern is
+  // what makes the shared stretches legible as shared rather than missing.
+
+  const cams = (res.safer || res.direct).camera_details || [];
+  for(const c of cams){
+    if(c.lat == null) continue;
+    const [x,y] = PROJ(c.lon, c.lat);
+    o.push(`<circle class="activecam" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2"/>`);
+  }
+  const ends = res.direct.segments;
+  for(const pt of [ends[0].geometry[0], ends[ends.length-1].geometry.slice(-1)[0]]){
+    const [x,y] = PROJ(pt[0], pt[1]);
+    o.push(`<circle class="endpin" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5"/>`);
+  }
+  $('#overlay').innerHTML = o.join('');
+}
+
+/* ── panel ────────────────────────────────────────────────────────────── */
+function card(r, cls, title, worst){
+  const pct = worst ? Math.round(100 * r.ped_collisions / worst) : 0;
+  return `<div class="card ${cls}">
+    <h3>${title}</h3>
+    <div class="figs">
+      <div><b>${(r.distance_m/1000).toFixed(2)} km</b>distance</div>
+      <div><b>${r.walk_minutes} min</b>walking</div>
+      <div style="padding-left:14px;border-left:1px solid var(--line)"><b>${r.camera_count}</b>cameras</div>
+    </div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="barlabel">${r.ped_collisions} pedestrian collisions on record ·
+      ${r.serious_collisions} serious or fatal</div>
+  </div>`;
+}
+
+function renderResults(res){
+  const d = res.direct, s = res.safer;
+  const worst = Math.max(d.ped_collisions, s ? s.ped_collisions : 0);
+  let html = card(d, 'direct', 'Shortest', worst);
+  if(s) html += card(s, 'safer', 'Fewer collisions', worst);
+
+  if(s){
+    const extraM = s.distance_m - d.distance_m;
+    const extraMin = (s.walk_minutes - d.walk_minutes).toFixed(1);
+    const dropPed = d.ped_collisions - s.ped_collisions;
+    const dropSer = d.serious_collisions - s.serious_collisions;
+    html += extraM > 0 && dropPed > 0
+      ? `<p class="verdict">Walking <em>${extraM} m further</em> — about
+         ${extraMin} min — routes you past <em>${dropPed} fewer</em> recorded
+         pedestrian collisions and <em>${dropSer} fewer</em> serious ones.</p>`
+      : `<p class="verdict">The shortest route is also the one with the least
+         recorded pedestrian collision history. No detour worth making.</p>`;
+  }
+  html += liveBox(res);
+  html += `<p class="barlabel">Routes computed in ${res.compute_ms} ms from
+    SDOT collision records, sidewalk inventory, street grade${res.live ? ' and camera reads' : ''}.</p>`;
+  $('#results').innerHTML = html;
+}
+
+const ago = secs => secs == null ? '' : secs < 90 ? 'just now' : secs < 5400
+  ? `${Math.round(secs/60)} min ago` : `${(secs/3600).toFixed(1)} h ago`;
+
+/* What the cameras added to the route decision, named so it can be checked. */
+function liveBox(res){
+  const L = res.live;
+  if(!L) return `<div class="livebox">Camera reads <b>off</b> — routing on the static record alone.</div>`;
+  const s = res.safer || res.direct, d = res.direct;
+  const passes = s.live_notes || [];
+  const onSafer = new Set(passes.map(n => n.seg_id));
+  const avoided = (d.live_notes || []).filter(n => !onSafer.has(n.seg_id));
+  const item = (n, cls) => {
+    const cam = n.cameras[0];
+    return `<li class="${cls}">${n.name}, ${n.from} → ${n.to}
+      <span class="why">· ${n.reasons.join(', ')}</span>
+      <span class="cam">· ${cam.id}, ${ago(cam.age_s)}</span></li>`;
+  };
+  let html = `<div class="livebox">
+    <b>${L.reads_fresh}</b> of ${L.reads_total} camera reads fresh enough to count
+    (≤ ${Math.round(L.max_age_s/60)} min) · <b>${L.cameras_flagging}</b> flagging something`;
+  if(avoided.length) html += `<ul>${avoided.map(n => item(n, 'avoid')).join('')}</ul>
+    <div style="margin-top:3px">↑ on the shortest route, avoided by the other</div>`;
+  if(passes.length) html += `<ul>${passes.map(n => item(n, '')).join('')}</ul>
+    <div style="margin-top:3px">↑ still on the route — no cheaper way round</div>`;
+  if(!avoided.length && !passes.length) html += `<div>Nothing fresh on either route.</div>`;
+  return html + `</div>`;
+}
+
+/* ── contact sheet ────────────────────────────────────────────────────── */
+function tags(o){
+  if(!o) return '<span class="tag t-dark">not read yet</span>';
+  const t = [];
+  if(o.lighting === 'daylight') t.push('<span class="tag t-day">daylight</span>');
+  else if(o.lighting === 'dark_unlit') t.push('<span class="tag t-alert">unlit</span>');
+  else if(o.lighting) t.push('<span class="tag t-dark">'+o.lighting.replace('_',' ')+'</span>');
+  if(o.weather_surface === 'wet' || o.weather_surface === 'raining')
+    t.push('<span class="tag t-wet">'+o.weather_surface+'</span>');
+  if(o.sidewalk_blocked) t.push('<span class="tag t-alert">walk blocked</span>');
+  if(o.construction) t.push('<span class="tag t-alert">construction</span>');
+  if(o.emergency_activity) t.push('<span class="tag t-alert">emergency</span>');
+  if(!o.sidewalk_blocked && !o.construction && !o.emergency_activity)
+    t.push('<span class="tag t-ok">path clear</span>');
+  return t.join('');
+}
+
+function renderSheet(res){
+  const r = res.safer || res.direct;
+  const cams = r.camera_details || [];
+  const strip = $('#strip');
+  if(!cams.length){
+    strip.innerHTML = '<p class="empty">No cameras watch this route.</p>';
+    $('#sheetnote').textContent = 'this stretch is unwatched';
+    return;
+  }
+  $('#sheetnote').textContent =
+    `${cams.length} cameras along the route · ${r.cameras_read} already read by the model · click any frame for a live read`;
+  strip.innerHTML = cams.map(c => {
+    const o = c.observation;
+    const people = o && o.people_visible != null ? `${o.people_visible} people` : '';
+    const rk = c.rank ? `<div class="rank${c.rank.percentile>=85?' hot':''}">
+        <span class="track"><i style="width:${c.rank.percentile}%"></i></span>
+        <span class="pv">busier than ${c.rank.percentile}% of downtown</span>
+      </div>` : '';
+    const flag = o && (o.sidewalk_blocked || o.construction || o.emergency_activity || o.lighting === 'dark_unlit');
+    const stale = res.live && c.frame_age_s != null && c.frame_age_s > res.live.max_age_s;
+    const age = c.frame_age_s != null
+      ? `<span class="age${stale ? ' stale' : ''}" title="${stale ? 'too old to steer the route' : 'counts toward the route'}">${ago(c.frame_age_s)}${stale ? ' · stale' : ''}</span>` : '';
+    return `<button class="tile${flag && !stale ? ' flag' : ''}" data-cam="${c.id}" data-desc="${c.description}">
+      <img loading="lazy" src="/api/camera/${c.id}/frame.jpg" alt="Traffic camera at ${c.description}"
+           onerror="this.classList.add('nofeed');this.removeAttribute('src')">
+      <div class="meta">
+        <div class="where">${c.description}</div>
+        <div class="read">${tags(o)}${age}</div>
+        <div class="note">${people}${o && o.notable ? ' · ' + o.notable : ''}</div>
+        ${rk}
+      </div>
+    </button>`;
+  }).join('');
+}
+
+/* ── live read ────────────────────────────────────────────────────────── */
+async function liveRead(camId, desc){
+  const dlg = $('#live');
+  $('#dtitle').innerHTML = desc;
+  $('#dimg').removeAttribute('src');
+  $('#dimg').alt = `Live traffic camera at ${desc}`;
+  $('#dbody').innerHTML = 'Fetching this camera from the city now…';
+  dlg.showModal();
+
+  // Fetch the frame ourselves so we can read X-Frame-Age: 0 means the city
+  // answered just now, anything else means we fell back to the stored frame
+  // and we say so on the badge rather than pass old pixels off as live.
+  let frameAge = null;
+  try{
+    const r = await fetch(`/api/camera/${camId}/frame.jpg?live=true&t=${Date.now()}`);
+    if(!r.ok) throw new Error(r.status);
+    frameAge = Number(r.headers.get('X-Frame-Age') ?? 'NaN');
+    $('#dimg').src = URL.createObjectURL(await r.blob());
+  }catch(e){
+    $('#dimg').src = `/api/camera/${camId}/frame.jpg?t=${Date.now()}`;
+  }
+  const isLive = frameAge === 0;
+  $('#dtitle').innerHTML = `${desc} <span class="badge ${isLive ? 'live' : 'stored'}">${
+    isLive ? 'live · fetched just now' : `stored frame · ${frameAge != null && !isNaN(frameAge) ? ago(frameAge) : 'age unknown'} · city fetch failed`}</span>`;
+
+  // The wait is not dead air, it is the argument. Count it out loud.
+  const t0 = performance.now();
+  const tick = setInterval(() => {
+    const el = $('#elapsed');
+    if(el) el.textContent = ((performance.now() - t0)/1000).toFixed(1) + 's';
+  }, 100);
+  $('#dbody').innerHTML = `
+    <div>${isLive ? 'Fetched this camera just now.' : 'Reading the last stored frame.'} Reading it on the GPU…</div>
+    <div style="margin-top:10px;font-size:22px;color:var(--sodium)"><span id="elapsed">0.0s</span></div>
+    <div style="margin-top:8px;color:var(--haze)">
+      One camera, one read, on an Apple M4. Downtown Seattle has 646.
+    </div>`;
+
+  try{
+    const o = await api(`/api/camera/${camId}/read?live=true`);
+    const secs = ((performance.now() - t0)/1000).toFixed(1);
+    clearInterval(tick);
+    $('#dbody').innerHTML = `
+      <div>${tags(o)}</div>
+      <div style="margin-top:8px">
+        people visible: <b>${o.people_visible ?? '—'}</b> ·
+        traffic: <b>${o.traffic ?? '—'}</b> ·
+        crowding: <b>${o.crowding ?? '—'}</b>
+      </div>
+      ${o.notable ? `<div style="margin-top:8px;color:var(--concrete)">${o.notable}</div>` : ''}
+      ${o.frame_source === 'stored' ? `<div style="margin-top:8px;color:var(--haze)">Read from a stored frame ${ago(o.frame_age_s)}, not a live fetch.</div>` : ''}
+      <div class="pitch">
+        <b>${secs}s</b> for one camera on this laptop.
+        At that rate a full sweep of all 646 is <b>${(secs*646/3600).toFixed(1)} hours</b> —
+        stale long before it finishes. The box does the same sweep inside a minute,
+        which is the difference between a record and a live picture.
+      </div>`;
+  }catch(e){
+    clearInterval(tick);
+    $('#dbody').innerHTML =
+      `<span style="color:var(--signal-red)">Could not read this camera. The stored frame above is still what it last showed.</span>`;
+  }
+}
+
+/* ── wiring ───────────────────────────────────────────────────────────── */
+async function go(){
+  const a = PLACES[$('#from').value], b = PLACES[$('#to').value];
+  if(!a || !b || a === b) return;
+  $('#go').disabled = true;
+  $('#go').textContent = 'Routing…';
+  try{
+    const w = $('#w').value, live = $('#uselive').checked;
+    const res = await api(`/api/route?from_lat=${a.lat}&from_lon=${a.lon}&to_lat=${b.lat}&to_lon=${b.lon}&safe_weight=${w}&use_live=${live}`);
+    CURRENT = res;
+    drawBase(boundsOfRoute(res)); drawRoutes(res); renderResults(res); renderSheet(res);
+  }catch(e){
+    $('#results').innerHTML = `<p class="verdict">No route between those points.</p>`;
+  }finally{
+    $('#go').disabled = false;
+    $('#go').textContent = 'Compare routes';
+  }
+}
+
+async function boot(){
+  const [net, places, st] = await Promise.all([
+    api('/api/network'), api('/api/places'), api('/api/stats')
+  ]);
+  NET = net; PLACES = places;
+  $('#stats').innerHTML = `
+    <div><b>${st.cameras_total}</b><span>cameras</span></div>
+    <div><b>${st.segments_watched_pct}%</b><span>blocks watched</span></div>
+    <div><b>${st.ped_collisions_watched_pct}%</b><span>ped collisions covered</span></div>
+    <div><b>${st.cameras_read}</b><span>read by model</span></div>`;
+
+  const opts = places.map((p,i) => `<option value="${i}">${p.name}</option>`).join('');
+  $('#from').innerHTML = opts; $('#to').innerHTML = opts;
+  $('#from').value = 0; $('#to').value = 2;
+
+  drawBase();
+  await go();
+}
+
+$('#go').addEventListener('click', go);
+let wt; $('#w').addEventListener('input', () => {
+  $('#wval').textContent = Number($('#w').value).toFixed(1);
+  clearTimeout(wt); wt = setTimeout(go, 180);
+});
+$('#uselive').addEventListener('change', go);
+$('#dclose').addEventListener('click', () => $('#live').close());
+$('#strip').addEventListener('click', e => {
+  const t = e.target.closest('.tile');
+  if(t) liveRead(t.dataset.cam, t.dataset.desc);
+});
+let rt; addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => { if(NET){ drawBase(CURRENT ? boundsOfRoute(CURRENT) : null); if(CURRENT) drawRoutes(CURRENT); } }, 150);
+});
+boot();
+</script>
+</body>
+</html>
