@@ -32,3 +32,7 @@ data/static/
 .env
 *.log
 nohup.out
+
+# VLM lab scratch (samples are copies of frames; runs are throwaway)
+data/lab/prepped/
+data/lab/runs/
