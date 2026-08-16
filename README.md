@@ -33,7 +33,7 @@ python -m uvicorn safewalk.api:app --host 127.0.0.1 --port 8010
 ```
 
 Env knobs live in `safewalk/config.py` — `SWEEP_INTERVAL` (900 on a Mac, 60 on the
-Spark), `SAFEWALK_VLM_BACKEND` (`mlx` on the Mac, `ollama` on the GB10 box), `SAFEWALK_VLM` (model id; defaults per backend),
+Spark), `SAFEWALK_VLM` (default `mlx-community/Qwen2.5-VL-7B-Instruct-4bit`),
 `LIVE_MAX_AGE` (how old a camera read may be and still steer a route, 3600 s).
 
 Before presenting: `scripts/demo_mode.sh on` suspends the corpus worker so a live

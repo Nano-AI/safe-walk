@@ -6,9 +6,8 @@ It may not say "this street is unsafe". Safety judgements are the user's, made
 from evidence we show them, because a model's opinion about danger is exactly
 the claim we cannot defend and the collision record already answers better.
 
-The Spark swap lives behind `caption_frame` / `caption_frames`: same call, same
-prompt, same schema, different backend. `SAFEWALK_VLM_BACKEND=mlx` (Mac, batch 1)
-or `ollama` (the GB10 box, N concurrent requests against a local ollama server).
+The Spark swap lives behind `caption_frames`: same call, same schema, different
+backend and batch size. Mac runs MLX at batch 1; the box runs many at once.
 """
 from __future__ import annotations
 
@@ -22,13 +21,7 @@ from PIL import Image
 
 from . import config
 
-BACKEND = os.getenv("SAFEWALK_VLM_BACKEND", "mlx")  # "mlx" | "ollama"
-_DEFAULT_MODEL = {"mlx": "mlx-community/Qwen2.5-VL-7B-Instruct-4bit", "ollama": "qwen2.5vl:7b"}
-MODEL_ID = os.getenv("SAFEWALK_VLM", _DEFAULT_MODEL.get(BACKEND, _DEFAULT_MODEL["mlx"]))
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
-# How many frames to keep in flight. MLX is one model, one stream; ollama on the
-# box serves several requests at once (OLLAMA_NUM_PARALLEL on the server side).
-CONCURRENCY = int(os.getenv("SAFEWALK_VLM_CONCURRENCY", "1" if BACKEND == "mlx" else "4"))
+MODEL_ID = os.getenv("SAFEWALK_VLM", "mlx-community/Qwen2.5-VL-7B-Instruct-4bit")
 # 1920x1080 is far more pixels than this task needs; the long edge dominates
 # prefill cost. 1024 keeps sidewalks and crowds legible for a fraction of it.
 MAX_EDGE = int(os.getenv("SAFEWALK_VLM_EDGE", "1024"))
@@ -60,20 +53,7 @@ _CONFIG = None
 
 
 def _ensure_loaded():
-    """Load (mlx) or warm (ollama) the model. Idempotent; called at API boot."""
     global _MODEL, _PROCESSOR, _CONFIG
-    if BACKEND == "ollama":
-        if _MODEL is None:
-            import httpx
-
-            # An empty generate loads the weights and keeps them resident, so the
-            # first real read on stage is not the slow one.
-            r = httpx.post(f"{OLLAMA_URL}/api/generate",
-                           json={"model": MODEL_ID, "prompt": "", "keep_alive": "24h"},
-                           timeout=300)
-            r.raise_for_status()
-            _MODEL = MODEL_ID
-        return _MODEL, None, None
     if _MODEL is None:
         from mlx_vlm import load
         from mlx_vlm.utils import load_config
@@ -115,44 +95,28 @@ def _parse(text: str) -> dict:
             return {"parse_error": text[:200]}
 
 
-def _generate_mlx(small: Path) -> str:
+def caption_frame(path: str | Path) -> dict:
+    """Read one frame. Returns the parsed observation plus timing."""
     from mlx_vlm import generate
     from mlx_vlm.prompt_utils import apply_chat_template
 
     model, processor, cfg = _ensure_loaded()
-    formatted = apply_chat_template(processor, cfg, PROMPT, num_images=1)
-    result = generate(model, processor, formatted, [str(small)],
-                      max_tokens=MAX_TOKENS, temperature=0.0, verbose=False)
-    return result.text if hasattr(result, "text") else str(result)
-
-
-def _generate_ollama(small: Path) -> str:
-    import base64
-
-    import httpx
-
-    _ensure_loaded()
-    payload = {
-        "model": MODEL_ID,
-        "prompt": PROMPT,
-        "images": [base64.b64encode(small.read_bytes()).decode("ascii")],
-        "stream": False,
-        "format": "json",  # constrained decoding: the schema comes back as JSON or not at all
-        "keep_alive": "24h",
-        "options": {"temperature": 0.0, "num_predict": MAX_TOKENS},
-    }
-    r = httpx.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=180)
-    r.raise_for_status()
-    return r.json().get("response", "")
-
-
-def caption_frame(path: str | Path) -> dict:
-    """Read one frame. Returns the parsed observation plus timing."""
     small = _downscale(Path(path))
+
+    formatted = apply_chat_template(processor, cfg, PROMPT, num_images=1)
     t0 = time.time()
-    text = _generate_ollama(small) if BACKEND == "ollama" else _generate_mlx(small)
+    result = generate(
+        model,
+        processor,
+        formatted,
+        [str(small)],
+        max_tokens=MAX_TOKENS,
+        temperature=0.0,
+        verbose=False,
+    )
     elapsed = time.time() - t0
 
+    text = result.text if hasattr(result, "text") else str(result)
     obs = _parse(text)
     obs["_seconds"] = round(elapsed, 2)
     obs["_frame"] = str(Path(path).relative_to(config.ROOT))
@@ -160,13 +124,8 @@ def caption_frame(path: str | Path) -> dict:
 
 
 def caption_frames(paths: list[str | Path]) -> list[dict]:
-    """Batch entry point. Sequential on the Mac; CONCURRENCY-wide on the box."""
-    if CONCURRENCY <= 1 or len(paths) <= 1:
-        return [caption_frame(p) for p in paths]
-    from concurrent.futures import ThreadPoolExecutor
-
-    with ThreadPoolExecutor(max_workers=CONCURRENCY) as ex:
-        return list(ex.map(caption_frame, paths))
+    """Batch entry point. Sequential on the Mac; the Spark parallelises here."""
+    return [caption_frame(p) for p in paths]
 
 
 if __name__ == "__main__":
@@ -177,17 +136,13 @@ if __name__ == "__main__":
         frames = sys.argv[1:]
 
     _ensure_loaded()
-    print(f"backend={BACKEND} model={MODEL_ID} edge={MAX_EDGE} concurrency={CONCURRENCY}\n")
-    wall0 = time.time()
-    results = caption_frames(frames)
-    wall = time.time() - wall0
+    print(f"model={MODEL_ID} edge={MAX_EDGE}\n")
     total = 0.0
-    for f, obs in zip(frames, results):
+    for f in frames:
+        obs = caption_frame(f)
         total += obs["_seconds"]
         cam = Path(f).parent.name
         print(f"--- {cam} ({obs['_seconds']}s)")
         print("   ", json.dumps({k: v for k, v in obs.items() if not k.startswith("_")}))
-    n = len(frames)
-    print(f"\n{n} frames: {total / n:.2f}s/frame in-model, {wall / n:.2f}s/frame wall "
-          f"at concurrency {CONCURRENCY} ({wall:.1f}s total)")
-    print(f"projected full 646-camera sweep: {wall / n * 646 / 60:.1f} min")
+    print(f"\n{len(frames)} frames, {total:.1f}s total, {total / len(frames):.2f}s/frame")
+    print(f"projected full 646-camera sweep: {total / len(frames) * 646 / 60:.1f} min")
