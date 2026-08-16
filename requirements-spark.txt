@@ -1,0 +1,9 @@
+# GB10 box (Acer Veriton GN100 / DGX Spark): aarch64 Linux, no MLX.
+# Inference goes through the local ollama server (SAFEWALK_VLM_BACKEND=ollama).
+fastapi==0.141.1
+uvicorn==0.52.3
+httpx==0.28.1
+networkx==3.6.1
+shapely==2.1.2
+pillow==12.3.0
+numpy==2.5.2
